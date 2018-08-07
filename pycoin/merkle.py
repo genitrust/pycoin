@@ -27,7 +27,7 @@ THE SOFTWARE.
 """
 
 from .encoding.hash import double_sha256
-from .encoding.hexbytes import h2b_rev
+from .serialize import h2b_rev
 
 
 def merkle(hashes, hash_f=double_sha256):

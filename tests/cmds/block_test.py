@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 
-from pycoin.encoding.hexbytes import h2b
+from pycoin.serialize import h2b
 
 from .ToolTest import ToolTest
 

@@ -2,13 +2,14 @@ import unittest
 
 
 from pycoin.crack.bip32 import ascend_bip32, crack_bip32
-from pycoin.symbols.btc import network as BitcoinMainnet
+from pycoin.coins.bitcoin.networks import BitcoinMainnet
+from pycoin.ecdsa.secp256k1 import secp256k1_generator
 
 
 class CrackBIP32Test(unittest.TestCase):
 
     def setUp(self):
-        self.bip32_key = BitcoinMainnet.ui._bip32node_class.from_master_secret(b"foo")
+        self.bip32_key = BitcoinMainnet.ui._bip32node_class.from_master_secret(secp256k1_generator, b"foo")
 
     def test_crack_bip32(self):
         bip32_key = self.bip32_key

@@ -2,9 +2,11 @@
 import io
 
 from .encoding.hash import double_sha256
-from .encoding.hexbytes import b2h, b2h_rev
 from .merkle import merkle
-from .satoshi.satoshi_struct import parse_struct, stream_struct
+from .serialize.bitcoin_streamer import parse_struct, stream_struct
+from .serialize import b2h, b2h_rev
+
+from .tx.Tx import Tx
 
 
 class BadMerkleRootError(Exception):
@@ -20,13 +22,7 @@ def difficulty_max_mask_for_bits(bits):
 class Block(object):
     """A Block is an element of the Bitcoin chain."""
 
-    @classmethod
-    def make_subclass(class_, tx):
-
-        class Block(class_):
-            Tx = tx
-
-        return Block
+    Tx = Tx
 
     @classmethod
     def parse(class_, f, include_transactions=True, include_offsets=None, check_merkle_hash=True):

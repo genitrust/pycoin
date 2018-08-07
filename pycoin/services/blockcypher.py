@@ -3,9 +3,9 @@ import io
 
 from .agent import urlopen
 
-from pycoin.coins.bitcoin.Tx import Tx
-from pycoin.encoding.hexbytes import b2h_rev, h2b, h2b_rev
 from pycoin.networks.default import get_current_netcode
+from pycoin.serialize import b2h_rev, h2b, h2b_rev
+from pycoin.tx.Tx import Spendable, Tx
 
 
 class BlockcypherProvider(object):
@@ -39,7 +39,7 @@ class BlockcypherProvider(object):
             script = h2b(txn.get("script"))
             previous_hash = h2b_rev(txn.get("tx_hash"))
             previous_index = txn.get("tx_output_n")
-            spendables.append(Tx.Spendable(coin_value, script, previous_hash, previous_index))
+            spendables.append(Spendable(coin_value, script, previous_hash, previous_index))
         return spendables
 
     def tx_for_tx_hash(self, tx_hash):
@@ -52,7 +52,7 @@ class BlockcypherProvider(object):
             result = json.loads(urlopen(url).read().decode("utf8"))
             tx = Tx.parse(io.BytesIO(h2b(result.get("hex"))))
             return tx
-        except Exception:
+        except:
             raise Exception
 
     def get_balance(self, address):

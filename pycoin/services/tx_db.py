@@ -1,8 +1,8 @@
 
 import os.path
 
-from pycoin.coins.bitcoin.Tx import Tx
-from pycoin.encoding.hexbytes import b2h_rev
+from pycoin.serialize import b2h_rev
+from pycoin.tx.Tx import Tx
 
 
 class TxDb(object):

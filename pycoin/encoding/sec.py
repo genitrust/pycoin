@@ -17,17 +17,16 @@ def public_pair_to_sec(public_pair, compressed=True):
 
 def sec_to_public_pair(sec, generator=None, strict=True):
     """Convert a public key in sec binary format to a public pair."""
-    byte_count = (generator.p().bit_length() + 7) >> 3 if generator else (len(sec) - 1)
-    x = from_bytes_32(sec[1:1 + byte_count])
+    x = from_bytes_32(sec[1:33])
     sec0 = sec[:1]
-    if len(sec) == 1 + byte_count * 2:
+    if len(sec) == 65:
         isok = sec0 == b'\4'
         if not strict:
             isok = isok or (sec0 in [b'\6', b'\7'])
         if isok:
-            y = from_bytes_32(sec[1+byte_count:1+2*byte_count])
+            y = from_bytes_32(sec[33:65])
             return (x, y)
-    elif len(sec) == 1 + byte_count:
+    elif len(sec) == 33:
         if not strict or (sec0 in (b'\2', b'\3')):
             is_y_odd = (sec0 != b'\2')
             y = generator.y_values_for_x(x)[is_y_odd]

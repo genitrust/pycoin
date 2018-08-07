@@ -1,6 +1,6 @@
 import unittest
 
-from pycoin.encoding.hexbytes import h2b, h2b_rev, b2h, b2h_rev
+from pycoin.serialize import h2b, h2b_rev, b2h, b2h_rev
 
 
 class SerializeTest(unittest.TestCase):

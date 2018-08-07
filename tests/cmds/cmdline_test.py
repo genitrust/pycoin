@@ -5,11 +5,10 @@ import tempfile
 from .ToolTest import ToolTest
 
 
-# If the REPAIR_FAILURES environment variable is set, any tests failing due to wrong
-# output will be corrected. Be sure to do a "git diff" to validate that you're
-# getting changes you expect.
+# if the REPAIR_FAILURES flag is set, any tests failing due to wrong output will be corrected
+# be sure to do a "git diff" to validate that you're getting the changes you expect
 
-REPAIR_FAILURES = os.getenv("REPAIR_FAILURES", 0)
+REPAIR_FAILURES = False
 
 
 def get_test_cases():

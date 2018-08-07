@@ -28,7 +28,7 @@ setup(
         "pycoin.serialize",
         "pycoin.services",
         "pycoin.solve",
-        "pycoin.symbols",
+        "pycoin.tx",
         "pycoin.ui",
         "pycoin.vm",
         "pycoin.wallet"
@@ -41,8 +41,10 @@ setup(
                 'ku = pycoin.cmds.ku:main',
                 'tx = pycoin.cmds.tx:main',
                 'msg = pycoin.cmds.msg:main',
-                'keychain = pycoin.cmds.keychain:main',
-                'b58 = pycoin.cmds.b58:main',
+                # these scripts are obsolete
+                'genwallet = pycoin.cmds.genwallet:main',
+                'spend = pycoin.cmds.spend:main',
+                'bu = pycoin.cmds.bitcoin_utils:main',
             ]
         },
     author_email="him@richardkiss.com",

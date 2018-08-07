@@ -1,19 +1,18 @@
 import binascii
 import unittest
 
-from pycoin.encoding.hexbytes import h2b
-from pycoin.symbols.btc import network as BitcoinMainnet
-
-
-Block = BitcoinMainnet.block
-Tx = BitcoinMainnet.tx
-BitcoinScriptTools = BitcoinMainnet.extras.ScriptTools
+from pycoin.block import Block
+from pycoin.coins.bitcoin.networks import BitcoinMainnet
+from pycoin.coins.bitcoin.ScriptTools import BitcoinScriptTools
+from pycoin.ecdsa.secp256k1 import secp256k1_generator
+from pycoin.serialize import h2b
+from pycoin.tx.Tx import Tx
 
 
 class ValidationTest(unittest.TestCase):
 
     def setUp(self):
-        self._key = BitcoinMainnet.extras.Key(1)
+        self._key = BitcoinMainnet.extras.Key(1, secp256k1_generator)
 
     def test_validate_multisig_tx(self):
         # this is a transaction in the block chain
@@ -223,7 +222,7 @@ class ValidationTest(unittest.TestCase):
         self.assertEqual(tx_to_validate.bad_signature_count(), 0)
 
     def _make_tx(self, input_script, other_scripts=[]):
-        from pycoin.coins.tx_utils import create_signed_tx
+        from pycoin.tx.tx_utils import create_signed_tx
         from pycoin.solve.utils import build_p2sh_lookup
 
         cv = int(50*1e8)

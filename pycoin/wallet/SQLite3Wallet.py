@@ -1,7 +1,7 @@
 from threading import RLock
 
-from pycoin.coins.tx_utils import create_tx
 from pycoin.convention.tx_fee import TX_FEE_PER_THOUSAND_BYTES
+from pycoin.tx.tx_utils import create_tx
 
 
 class SQLite3Wallet(object):
@@ -70,20 +70,18 @@ class SQLite3Wallet(object):
     def got_mempool_tx_callback(self, tx):
         with self._lock:
             for tx_in in tx.txs_in:
-                s = self.persistence.spendable_for_hash_index(tx_in.previous_hash, tx_in.previous_index, tx.Spendable)
+                s = self.persistence.spendable_for_hash_index(tx_in.previous_hash, tx_in.previous_index)
                 if s:
                     s.does_seem_spent = True
                     self.persistence.save_spendable(s)
             for spendable in tx.tx_outs_as_spendable():
                 if self.keychain.is_spendable_interesting(spendable):
-                    s = self.persistence.spendable_for_hash_index(
-                        tx_in.previous_hash, tx_in.previous_index, tx.Spendable)
+                    s = self.persistence.spendable_for_hash_index(tx_in.previous_hash, tx_in.previous_index)
                     self.persistence.save_spendable(spendable)
 
     def _process_confirmed_tx(self, tx, blockheader, block_index):
         for tx_in in tx.txs_in:
-            spendable = self.persistence.spendable_for_hash_index(
-                tx_in.previous_hash, tx_in.previous_index, tx.Spendable)
+            spendable = self.persistence.spendable_for_hash_index(tx_in.previous_hash, tx_in.previous_index)
             if spendable:
                 spendable.block_index_spent = block_index
                 self.persistence.save_spendable(spendable)
@@ -101,12 +99,7 @@ class SQLite3Wallet(object):
     def _rollback_block(self, blockheader, block_index):
         with self._lock:
             self.set_last_block_index(block_index-1)
-            self.persistence.rewind_spendables(block_index)
-
-    def rewind(self, block_index):
-        with self._lock:
-            self.set_last_block_index(block_index-1)
-            self.persistence.rewind_spendables(block_index)
+            self.persistence.invalidate_block_index_for_spendables(block_index)
 
     def get_balance(self, confirmations=1):
         lbi = self.last_block_index()
