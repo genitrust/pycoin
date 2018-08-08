@@ -246,7 +246,10 @@ def create_parser():
     parser.add_argument("--override-network", help='override detected network type',
                         default=None, choices=codes)
     parser.add_argument(
-        '-e', '--ether-key', help='show just Ethereum secret key', action='store_true'
+        '-E', '--ether-key', help='show just Ethereum secret key', action='store_true'
+    )
+    parser.add_argument(
+        '-e', '--ether-addr', help='show just Ethereum address', action='store_true'
     )
 
     parser.add_argument(
@@ -313,6 +316,8 @@ def generate_output(args, output_dict, output_order):
         print(output_dict["address" + ("_uncompressed" if args.uncompressed else "")])
     elif args.ether_key:
         print(output_dict["ethereum_secret_key"])
+    elif args.ether_addr:
+        print(output_dict["ethereum_address"])
     else:
         dump_output(output_dict, output_order)
 
