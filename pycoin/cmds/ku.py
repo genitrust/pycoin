@@ -251,6 +251,9 @@ def create_parser():
     parser.add_argument(
         '-e', '--ether-addr', help='show just Ethereum address', action='store_true'
     )
+    parser.add_argument(
+        '-:', '--output-only', help='filter output by this key'
+    )
 
     parser.add_argument(
         'item', nargs="*", help='a BIP0032 wallet key string;'
@@ -307,7 +310,11 @@ def generate_output(args, output_dict, output_order):
     if args.json:
         # the python2 version of json.dumps puts an extra blank prior to the end of each line
         # the "replace" is a hack to make python2 produce the same output as python3
-        print(json.dumps(output_dict, indent=3, sort_keys=True).replace(" \n", "\n"))
+        if args.output_only:
+            output = {args.output_only: output_dict[args.output_only]}
+        else:
+            output = output_dict
+        print(json.dumps(output, indent=3, sort_keys=True).replace(" \n", "\n"))
     elif args.wallet:
         print(output_dict["wallet_key"])
     elif args.wif:
@@ -318,6 +325,8 @@ def generate_output(args, output_dict, output_order):
         print(output_dict["ethereum_secret_key"])
     elif args.ether_addr:
         print(output_dict["ethereum_address"])
+    elif args.output_only:
+        print(output_dict[args.output_only])
     else:
         dump_output(output_dict, output_order)
 
