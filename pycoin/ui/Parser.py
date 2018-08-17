@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from pycoin.encoding.b58 import a2b_hashed_base58, EncodingError
+from pycoin.encoding.b58 import a2b_hashed_base58, a2b_hashed_base58_grs, EncodingError
 from pycoin.contrib import segwit_addr
 
 """
@@ -25,7 +25,11 @@ def metadata_for_text(text):
         data = a2b_hashed_base58(text)
         d["as_base58"] = (data,)
     except EncodingError:
-        d["as_base58"] = None
+        try:
+            data = a2b_hashed_base58_grs(text)
+            d["as_base58"] = (data,)
+        except EncodingError:
+            d["as_base58"] = None
 
     try:
         hrp, data = segwit_addr.bech32_decode(text)

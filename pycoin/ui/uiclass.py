@@ -1,6 +1,6 @@
 import hashlib
 
-from pycoin.encoding.b58 import b2a_hashed_base58
+from pycoin.encoding.b58 import b2a_hashed_base58, b2a_hashed_base58_grs
 from pycoin.encoding.hash import hash160
 from pycoin.serialize import b2h
 
@@ -55,6 +55,8 @@ class UI(object):
         return self._bip32_pub_prefix
 
     def wif_for_blob(self, blob):
+        print('line 58:')
+        print(self.__dict__, blob)
         return b2a_hashed_base58(self._wif_prefix + blob)
 
     def sec_text_for_blob(self, blob):
@@ -93,10 +95,14 @@ class UI(object):
 
     def address_for_p2pkh(self, h160):
         if self._address_prefix:
+            if 'GRS' in self._sec_prefix:
+                return b2a_hashed_base58_grs(self._address_prefix + h160)
             return b2a_hashed_base58(self._address_prefix + h160)
         return "???"
 
     def address_for_p2sh(self, h160):
+        print('line 104')
+        print(self.__dict__, h160)
         if self._pay_to_script_prefix:
             return b2a_hashed_base58(self._pay_to_script_prefix + h160)
         return "???"

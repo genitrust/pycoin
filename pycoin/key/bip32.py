@@ -47,6 +47,9 @@ import struct
 from ..encoding.bytes32 import from_bytes_32, to_bytes_32
 from ..encoding.sec import public_pair_to_sec
 
+from .. import ecdsa
+from ..ecdsa.ellipticcurve import INFINITY
+
 logger = logging.getLogger(__name__)
 
 

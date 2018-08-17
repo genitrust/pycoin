@@ -92,9 +92,9 @@ NETWORKS = (
     NetworkValues("PIVX", "testnet", "TPIVX", b'\xef', b'\x8b', b'\x13', h2b('3a8061a0'), h2b('3a805837')),
 
     # GRS mainnet
-    NetworkValues("Groestlcoin", "mainnet", "GRS",  b'\x80', b'\x24', b'\x05', h2b("0488ADE4"), h2b("0488B21E")),
+    NetworkValues("Groestlcoin", "mainnet", "GRS",  b'\x80', b'\x24', b'\x05', h2b("0488ade4"), h2b("0488b21e")),
 
     # GRS testnet
-    NetworkValues("Groestlcoin", "testnet", "TGRS",  b'\xEF', b'\x6F', b'\xC4', h2b("04358394"), h2b("043587CF")),
+    NetworkValues("Groestlcoin", "testnet", "TGRS",  b'\xEF', b'\x6F', b'\xC4', h2b("04358394"), h2b("043587cf")),
 
 )
