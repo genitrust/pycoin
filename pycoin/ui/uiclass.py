@@ -101,9 +101,9 @@ class UI(object):
         return "???"
 
     def address_for_p2sh(self, h160):
-        print('line 104')
-        print(self.__dict__, h160)
         if self._pay_to_script_prefix:
+            if 'GRS' in self._sec_prefix:
+                return b2a_hashed_base58_grs(self._pay_to_script_prefix + h160)
             return b2a_hashed_base58(self._pay_to_script_prefix + h160)
         return "???"
 
