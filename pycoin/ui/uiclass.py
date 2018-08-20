@@ -55,8 +55,6 @@ class UI(object):
         return self._bip32_pub_prefix
 
     def wif_for_blob(self, blob):
-        print('line 58:')
-        print(self.__dict__, blob)
         return b2a_hashed_base58(self._wif_prefix + blob)
 
     def sec_text_for_blob(self, blob):
