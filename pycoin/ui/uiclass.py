@@ -55,6 +55,8 @@ class UI(object):
         return self._bip32_pub_prefix
 
     def wif_for_blob(self, blob):
+        if 'GRS' in self._sec_prefix:
+            return b2a_hashed_base58_grs(self._wif_prefix + blob)
         return b2a_hashed_base58(self._wif_prefix + blob)
 
     def sec_text_for_blob(self, blob):

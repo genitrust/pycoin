@@ -67,4 +67,5 @@ setup(
         'pysha3==1.0.2',
         'rlp==0.6.0',
         'web3==3.16.5',
+        'groestlcoin-hash==1.0.1',
     ],)
