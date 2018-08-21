@@ -1,4 +1,4 @@
 pysha3==1.0.2
 rlp==0.6.0
 web3==3.16.5
-git+https://github.com/Groestlcoin/groestlcoin-hash-python.git@eeb63cdac624bca829304e2c259d02f19a916863
+groestlcoin-hash==1.0.1
