@@ -1,6 +1,7 @@
 from .Generator import Generator
 from .native.openssl import create_OpenSSLOptimizations, NID_secp256k1
 from .native.secp256k1 import LibSECP256K1Optimizations
+from .ellipticcurve import CurveFp, Point
 
 # from http://www.secg.org/sec2-v2.pdf
 
@@ -19,3 +20,4 @@ class GeneratorWithOptimizations(LibSECP256K1Optimizations, create_OpenSSLOptimi
 
 
 secp256k1_generator = GeneratorWithOptimizations(_p, _a, _b, (_Gx, _Gy), _r)
+generator_secp256k1 = Point(CurveFp(_p, _a, _b), _Gx, _Gy, _r)

@@ -1,6 +1,6 @@
 import hashlib
 
-from pycoin.encoding.b58 import b2a_hashed_base58
+from pycoin.encoding.b58 import b2a_hashed_base58, b2a_hashed_base58_grs
 from pycoin.encoding.hash import hash160
 from pycoin.serialize import b2h
 
@@ -93,11 +93,15 @@ class UI(object):
 
     def address_for_p2pkh(self, h160):
         if self._address_prefix:
+            if 'GRS' in self._sec_prefix:
+                return b2a_hashed_base58_grs(self._address_prefix + h160)
             return b2a_hashed_base58(self._address_prefix + h160)
         return "???"
 
     def address_for_p2sh(self, h160):
         if self._pay_to_script_prefix:
+            if 'GRS' in self._sec_prefix:
+                return b2a_hashed_base58_grs(self._pay_to_script_prefix + h160)
             return b2a_hashed_base58(self._pay_to_script_prefix + h160)
         return "???"
 

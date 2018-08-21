@@ -19,7 +19,7 @@ import hashlib
 import hmac
 import struct
 
-from ..encoding.b58 import b2a_hashed_base58
+from ..encoding.b58 import b2a_hashed_base58, b2a_hashed_base58_grs
 from ..encoding.bytes32 import from_bytes_32, to_bytes_32
 from ..encoding.exceptions import EncodingError
 from ..encoding.sec import public_pair_to_hash160_sec
@@ -109,6 +109,8 @@ class BIP32Node(Key):
 
     def hwif(self, as_private=False, ui_context=None):
         """Yield a 111-byte string corresponding to this node."""
+        if 'GRS' in ui_context._sec_prefix:
+            return b2a_hashed_base58_grs(self.serialize(as_private=as_private, ui_context=ui_context))
         return b2a_hashed_base58(self.serialize(as_private=as_private, ui_context=ui_context))
 
     as_text = hwif
