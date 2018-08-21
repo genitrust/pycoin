@@ -62,4 +62,9 @@ setup(
         'Topic :: Internet',
         'Topic :: Security :: Cryptography',
         'Topic :: Software Development :: Libraries :: Python Modules',
+    ],
+    install_requires=[
+        'pysha3==1.0.2',
+        'rlp==0.6.0',
+        'web3==3.16.5',
     ],)
