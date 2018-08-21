@@ -2,20 +2,17 @@
 
 import pdb
 
-from pycoin.coins.SolutionChecker import ScriptError
 from pycoin.satoshi.checksigops import parse_signature_blob
+from ..serialize import b2h
+
 from pycoin.encoding.exceptions import EncodingError
 from pycoin.encoding.hash import hash160
-from pycoin.encoding.hexbytes import b2h
 from pycoin.encoding.sec import public_pair_to_sec, sec_to_public_pair
 from pycoin.intbytes import indexbytes, int2byte
+from pycoin.tx.exceptions import SolvingError
 from pycoin.satoshi import der
 
 from .constraints import Atom, Operator
-
-
-class SolvingError(Exception):
-    pass
 
 
 DEFAULT_PLACEHOLDER_SIGNATURE = b''
@@ -49,7 +46,7 @@ def _find_signatures(script_blobs, generator_for_signature_type_f, signature_for
                     signatures.append((idx, data))
                     secs_solved.add(sec_key)
                     break
-        except (ValueError, EncodingError, der.UnexpectedDER, ScriptError):
+        except (ValueError, EncodingError, der.UnexpectedDER):
             # if public_pair is invalid, we just ignore it
             pass
     return signatures, secs_solved

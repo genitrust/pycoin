@@ -1,16 +1,15 @@
 import unittest
 
+from pycoin.coins.bitcoin.networks import BitcoinMainnet, BitcoinTestnet
 from pycoin.coins.bitcoin.ScriptTools import BitcoinScriptTools
 from pycoin.coins.bitcoin.SolutionChecker import BitcoinSolutionChecker
 from pycoin.ecdsa.secp256k1 import secp256k1_generator
-from pycoin.encoding.hexbytes import b2h, b2h_rev
 from pycoin.intbytes import int2byte
 from pycoin.satoshi.flags import SIGHASH_ALL, SIGHASH_ANYONECANPAY, SIGHASH_SINGLE
 from pycoin.satoshi.der import sigdecode_der, sigencode_der
-from pycoin.symbols.btc import network as BitcoinMainnet
-from pycoin.symbols.xtn import network as BitcoinTestnet
+from pycoin.serialize import b2h, b2h_rev
+from pycoin.tx.Tx import Tx
 
-Tx = BitcoinMainnet.tx
 TxIn = Tx.TxIn
 TxOut = Tx.TxOut
 

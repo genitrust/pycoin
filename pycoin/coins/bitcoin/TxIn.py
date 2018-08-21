@@ -25,10 +25,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from pycoin.encoding.hash import hash160
-from pycoin.encoding.hexbytes import b2h, b2h_rev, h2b
-from pycoin.satoshi.satoshi_struct import parse_struct, stream_struct
-
+from ...encoding.hash import hash160
+from ...serialize import b2h, b2h_rev, h2b
+from ...serialize.bitcoin_streamer import parse_struct, stream_struct
 from .ScriptTools import BitcoinScriptTools as ScriptTools  # BRAIN DAMAGE
 
 

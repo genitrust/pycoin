@@ -41,12 +41,11 @@ class ScriptTools(object):
         """
         f = io.BytesIO()
         for t in s.split():
-            t_up = t.upper()
-            if t_up in self.opcode_to_int:
+            if t in self.opcode_to_int:
                 f.write(int2byte(self.opcode_to_int[t]))
-            elif ("OP_%s" % t_up) in self.opcode_to_int:
+            elif ("OP_%s" % t) in self.opcode_to_int:
                 f.write(int2byte(self.opcode_to_int["OP_%s" % t]))
-            elif t_up.startswith("0X"):
+            elif t.startswith("0x"):
                 d = binascii.unhexlify(t[2:])
                 f.write(d)
             else:
@@ -66,8 +65,7 @@ class ScriptTools(object):
         Iterator. Return opcode, data, pc, new_pc at each step
         """
         while pc < len(script):
-            opcode, data, new_pc, is_ok = self.scriptStreamer.get_opcode(
-                script, pc, verify_minimal_data=verify_minimal_data)
+            opcode, data, new_pc = self.scriptStreamer.get_opcode(script, pc, verify_minimal_data=verify_minimal_data)
             yield opcode, data, pc, new_pc
             pc = new_pc
 

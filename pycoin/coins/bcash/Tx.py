@@ -1,10 +1,10 @@
 
-from .SolutionChecker import BcashSolutionChecker
-from .Solver import BcashSolver
+from .SolutionChecker import BCashSolutionChecker
+from .Solver import BCashSolver
 
-from pycoin.coins.bitcoin.Tx import Tx as BaseTx
+from pycoin.tx.Tx import Tx as BaseTx
 
 
 class Tx(BaseTx):
-    Solver = BcashSolver
-    SolutionChecker = BcashSolutionChecker
+    Solver = BCashSolver
+    SolutionChecker = BCashSolutionChecker

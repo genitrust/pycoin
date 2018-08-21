@@ -9,25 +9,22 @@ import datetime
 import io
 import os.path
 import re
-import sqlite3
 import subprocess
 import sys
 
-from .dump import dump_tx
-
-from pycoin.coins.exceptions import BadSpendableError
-from pycoin.coins.tx_utils import distribute_from_split_pool
 from pycoin.convention import tx_fee, satoshi_to_mbtc
-from pycoin.encoding.hexbytes import b2h, h2b, h2b_rev
-from pycoin.key.subpaths import subpaths_for_path_range
-from pycoin.key.Keychain import Keychain
-from pycoin.networks.registry import network_codes
+from pycoin.encoding.hash import hash160
+from pycoin.networks.registry import full_network_name_for_netcode, network_codes
 from pycoin.networks.registry import network_for_netcode
 from pycoin.networks.default import get_current_netcode
+from pycoin.serialize import b2h, h2b, h2b_rev
 from pycoin.services import spendables_for_address, get_tx_db
 from pycoin.services.providers import message_about_tx_cache_env, \
     message_about_tx_for_tx_hash_env, message_about_spendables_for_address_env
-from pycoin.solve.utils import build_sec_lookup
+from pycoin.solve.utils import build_p2sh_lookup, build_sec_lookup
+from pycoin.tx.dump import dump_tx
+from pycoin.tx.exceptions import BadSpendableError
+from pycoin.tx.tx_utils import distribute_from_split_pool, sign_tx
 from pycoin.ui.key_from_text import key_from_text
 
 
@@ -118,7 +115,7 @@ def create_parser():
     codes = network_codes()
     EPILOG = ('Files are binary by default unless they end with the suffix ".hex". ' +
               'Known networks codes:\n  ' +
-              ', '.join(['%s (%s)' % (i, network_for_netcode(i).full_name()) for i in codes]))
+              ', '.join(['%s (%s)' % (i, full_network_name_for_netcode(i)) for i in codes]))
 
     parser = argparse.ArgumentParser(
         description="Manipulate bitcoin (or alt coin) transactions.",
@@ -146,14 +143,6 @@ def create_parser():
                         ' is fetched from web services. With no outputs, incoming spendables will be printed.')
 
     parser.add_argument("-I", "--dump-inputs", action='store_true', help='Dump inputs to this transaction.')
-
-    parser.add_argument(
-        "-k", "--keychain", default=":memory:",
-        help="path to keychain file for hierarchical key hints (SQLite3 file created with keychain tool)")
-
-    parser.add_argument(
-        "-K", "--key-paths", default="",
-        help="Key path hints to search hiearachical private keys (example: 0/0H/0-20)")
 
     parser.add_argument('-f', "--private-key-file", metavar="path-to-private-keys", action="append", default=[],
                         help='file containing WIF or BIP0032 private keys. If file name ends with .gpg, '
@@ -221,8 +210,6 @@ def create_parser():
     parser.add_argument("--dump-secs", action="store_true",
                         help="print secs (for use with --sec)")
 
-    parser.add_argument("--coinbase", type=str, help="add an input as a coinbase from the given address")
-
     parser.add_argument("argument", nargs="*", help='generic argument: can be a hex transaction id '
                         '(exactly 64 characters) to be fetched from cache or a web service;'
                         ' a transaction as a hex string; a path name to a transaction to be loaded;'
@@ -243,7 +230,7 @@ def replace_with_gpg_pipe(args, f):
     return popen.stdout
 
 
-def parse_private_key_file(args, keychain):
+def parse_private_key_file(args, key_list):
     wif_re = re.compile(r"[1-9a-km-zA-LMNP-Z]{51,111}")
     # address_re = re.compile(r"[1-9a-kmnp-zA-KMNP-Z]{27-31}")
     for f in args.private_key_file:
@@ -265,8 +252,11 @@ def parse_private_key_file(args, keychain):
             keys = [make_key(x) for x in possible_keys]
             for key in keys:
                 if key:
-                    keychain.add_secrets([key])
-                    keychain.add_key_paths(key, subpaths_for_path_range(args.key_paths))
+                    key_list.append((k.wif() for k in key.subkeys("")))
+
+            # if len(keys) == 1 and key.hierarchical_wallet() is None:
+            #    # we have exactly 1 WIF. Let's look for an address
+            #   potential_addresses = address_re.findall(line)
 
 
 TX_ID_RE = re.compile(r"^[0-9a-fA-F]{64}$")
@@ -303,12 +293,13 @@ def parse_tx(tx_class, arg, parser, tx_db, network):
     return tx, tx_db
 
 
-def parse_scripts(args, keychain):
+def parse_scripts(args):
+    scripts = []
     warnings = []
 
     for p2s in args.pay_to_script or []:
         try:
-            keychain.add_p2s_script(h2b(p2s))
+            scripts.append(h2b(p2s))
         except Exception:
             warnings.append("warning: error parsing pay-to-script value %s" % p2s)
 
@@ -320,20 +311,27 @@ def parse_scripts(args, keychain):
                 m = hex_re.search(l)
                 if m:
                     p2s = m.group(0)
-                    keychain.add_p2s_script(h2b(p2s))
+                    scripts.append(h2b(p2s))
                     count += 1
             except Exception:
                 warnings.append("warning: error parsing pay-to-script file %s" % f.name)
         if count == 0:
             warnings.append("warning: no scripts found in %s" % f.name)
-    keychain.commit()
-    return warnings
+    return scripts, warnings
+
+
+def invoke_p2sh_lookup(args):
+    scripts, warnings = parse_scripts(args)
+    for w in warnings:
+        print(w)
+
+    return build_p2sh_lookup(scripts)
 
 
 def create_tx_db(network):
     tx_db = get_tx_db(network.code)
     tx_db.warning_tx_cache = message_about_tx_cache_env()
-    tx_db.warning_tx_for_tx_hash = message_about_tx_for_tx_hash_env(network.code)
+    tx_db.warning_tx_for_tx_hash = message_about_tx_for_tx_hash_env(network)
     return tx_db
 
 
@@ -354,15 +352,14 @@ def parse_parts(tx_class, arg, spendables, payables, network):
             return True
 
 
-def key_found(arg, payables, keychain, key_paths, network):
+def key_found(arg, payables, key_iters, network):
     try:
-        key = network.ui.parse(arg)
+        key = key_from_text(arg)
         # TODO: check network
-        if not hasattr(key, "secret_exponent") or key.secret_exponent() is None:
+        if key.wif() is None:
             payables.append((network.ui.script_for_address(key.address()), 0))
             return True
-        keychain.add_secrets([key])
-        keychain.add_key_paths(key, subpaths_for_path_range(key_paths))
+        key_iters.append(iter([key.wif()]))
         return True
     except Exception:
         pass
@@ -383,45 +380,30 @@ def script_for_address_or_opcodes(network, text):
         pass
 
 
-def build_coinbase_tx(network, address_or_opcodes):
-    puzzle_script = script_for_address_or_opcodes(network, address_or_opcodes)
-    txs_in = [network.tx.TxIn.coinbase_tx_in(b'fake-pycoin-coinbase')]
-    txs_out = [network.tx.TxOut(int(50*1e8), puzzle_script)]
-    tx = network.tx(1, txs_in, txs_out)
-    return tx
-
-
 def parse_context(args, parser):
     network = network_for_netcode(args.network)
     tx_class = network.tx
-
-    # defaults
-
-    spendables = []
-    payables = []
 
     # we create the tx_db lazily
     tx_db = None
 
     if args.db:
-
         try:
-            txs = [tx_class.from_hex(tx_hex) for tx_hex in args.db or []]
+            txs = [tx_class.from_hex(tx_hex) for tx_hex in args.db]
         except Exception:
             parser.error("can't parse ")
-
         the_ram_tx_db = dict((tx.hash(), tx) for tx in txs)
         if tx_db is None:
             tx_db = create_tx_db(network)
         tx_db.lookup_methods.append(the_ram_tx_db.get)
 
+    # defaults
+
     txs = []
+    spendables = []
+    payables = []
 
-    if args.coinbase:
-        coinbase_tx = build_coinbase_tx(network, args.coinbase)
-        txs.append(coinbase_tx)
-
-    keychain = Keychain(sqlite3.connect(args.keychain))
+    key_iters = []
 
     # there are a few warnings we might optionally print out, but only if
     # they are relevant. We don't want to print them out multiple times, so we
@@ -435,7 +417,7 @@ def parse_context(args, parser):
             txs.append(tx)
             continue
 
-        if key_found(arg, payables, keychain, args.key_paths, network):
+        if key_found(arg, payables, key_iters, network):
             continue
 
         if parse_parts(tx_class, arg, spendables, payables, network):
@@ -448,14 +430,14 @@ def parse_context(args, parser):
 
         parser.error("can't parse %s" % arg)
 
-    parse_private_key_file(args, keychain)
+    parse_private_key_file(args, key_iters)
 
     if args.fetch_spendables:
         warning_spendables = message_about_spendables_for_address_env(args.network)
         for address in args.fetch_spendables:
             spendables.extend(spendables_for_address(address, args.network))
 
-    return (network, txs, spendables, payables, keychain, tx_db, warning_spendables)
+    return (network, txs, spendables, payables, key_iters, tx_db, warning_spendables)
 
 
 def merge_txs(network, txs, spendables, payables):
@@ -572,22 +554,19 @@ def print_output(tx, include_unspents, output_file, show_unspents,
     else:
         if not tx.missing_unspents():
             check_fees(tx)
-        output = []
-        dump_tx(output, tx, network, verbose_signature, disassembly_level, trace, pdb)
-        for line in output:
-            print(line)
+        dump_tx(tx, network, verbose_signature, disassembly_level, trace, pdb)
         if include_unspents:
             print("including unspents in hex dump since transaction not fully signed")
         print(tx_as_hex)
 
 
-def do_signing(tx, keychain, p2sh_lookup, sec_hints, signature_hints, network):
+def do_signing(tx, key_iters, p2sh_lookup, sec_hints, signature_hints, network):
     unsigned_before = tx.bad_signature_count()
     unsigned_after = unsigned_before
-    if unsigned_before > 0 and (keychain.has_secrets() or sec_hints or signature_hints):
+    if unsigned_before > 0 and (key_iters or sec_hints or signature_hints):
         print("signing...", file=sys.stderr)
-        solver = tx.Solver(tx)
-        solver.sign(keychain, p2sh_lookup=p2sh_lookup, sec_hints=sec_hints, signature_hints=signature_hints)
+        sign_tx(tx, wif_iter(key_iters), p2sh_lookup=p2sh_lookup,
+                network=network, sec_hints=sec_hints, signature_hints=signature_hints)
 
         unsigned_after = tx.bad_signature_count()
         if unsigned_after > 0:
@@ -658,7 +637,7 @@ def dump_inputs(tx, network):
 
 
 def tx(args, parser):
-    (network, txs, spendables, payables, keychain, tx_db, warning_spendables) = parse_context(args, parser)
+    (network, txs, spendables, payables, key_iters, tx_db, warning_spendables) = parse_context(args, parser)
 
     for tx in txs:
         if tx.missing_unspents() and (args.augment or tx_db):
@@ -667,16 +646,14 @@ def tx(args, parser):
             tx.unspents_from_db(tx_db, ignore_missing=True)
 
     # build p2sh_lookup
-    warnings = parse_scripts(args, keychain)
-    for w in warnings:
-        print(w)
+    p2sh_lookup = invoke_p2sh_lookup(args)
 
     tx = generate_tx(network, txs, spendables, payables, args)
 
     signature_hints = [h2b(sig) for sig in (args.signature or [])]
     sec_hints = build_sec_lookup([h2b(sec) for sec in (args.sec or [])])
 
-    is_fully_signed = do_signing(tx, keychain, keychain, sec_hints, signature_hints, network)
+    is_fully_signed = do_signing(tx, key_iters, p2sh_lookup, sec_hints, signature_hints, network)
 
     include_unspents = not is_fully_signed
 

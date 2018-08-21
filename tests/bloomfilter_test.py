@@ -2,9 +2,7 @@ import binascii
 import unittest
 
 from pycoin.bloomfilter import filter_size_required, hash_function_count_required, BloomFilter, murmur3
-from pycoin.symbols.btc import network as BitcoinMainnet
-
-Spendable = BitcoinMainnet.tx.Spendable
+from pycoin.tx.Spendable import Spendable
 
 h2b = binascii.unhexlify
 
@@ -36,7 +34,7 @@ class BloomFilterTest(unittest.TestCase):
         tx_hash = h2b("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
         spendable = Spendable(coin_value=1000, script=b'foo', tx_hash=tx_hash, tx_out_index=1)
         bf.add_spendable(spendable)
-        self.assertEqual(bf.filter_bytes, h2b("0000400000000008011130000000101100000000"))
+        self.assertEqual(bf.filter_bytes, h2b("0000400000000000090030400042100100000000"))
 
     def test_murmur3(self):
         # test vectors from https://stackoverflow.com/questions/14747343/murmurhash3-test-vectors

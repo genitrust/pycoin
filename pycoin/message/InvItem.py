@@ -1,15 +1,9 @@
 import functools
 
-from pycoin.encoding.hexbytes import b2h_rev
-from pycoin.satoshi.satoshi_struct import parse_struct, stream_struct
+from pycoin.serialize import b2h_rev
+from pycoin.serialize.bitcoin_streamer import parse_struct, stream_struct
 
-ITEM_TYPE_TX = 1
-ITEM_TYPE_BLOCK = 2
-ITEM_TYPE_MERKLEBLOCK = 3
-INV_CMPCT_BLOCK = 4
-
-INV_WITNESS_FLAG = 1 << 30
-INV_TYPE_MASK = 0xffffffff >> 2
+ITEM_TYPE_TX, ITEM_TYPE_BLOCK, ITEM_TYPE_MERKLEBLOCK = (1, 2, 3)
 
 
 @functools.total_ordering

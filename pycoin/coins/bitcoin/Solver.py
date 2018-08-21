@@ -1,13 +1,15 @@
+from ...serialize import b2h, h2b
 
+from ..exceptions import SolvingError
 from ..SolutionChecker import ScriptError
 
 from .SolutionChecker import BitcoinSolutionChecker
 from .ScriptTools import BitcoinScriptTools
 
-from pycoin.encoding.hexbytes import b2h, h2b
 from pycoin.satoshi.flags import SIGHASH_ALL
+
 from pycoin.solve.constraints import Atom, Operator, make_traceback_f
-from pycoin.solve.solve import solutions_for_constraint, SolvingError
+from pycoin.solve.solve import solutions_for_constraint
 
 
 def generate_default_placeholder_signature(generator):

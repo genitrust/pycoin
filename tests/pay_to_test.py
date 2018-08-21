@@ -1,9 +1,10 @@
 import io
 import unittest
 
+from pycoin.coins.bitcoin.networks import BitcoinMainnet
 from pycoin.coins.bitcoin.ScriptTools import BitcoinScriptTools
-from pycoin.encoding.hexbytes import h2b
-from pycoin.symbols.btc import network as BitcoinMainnet
+from pycoin.serialize import h2b
+from pycoin.tx.Tx import Tx
 
 
 # BRAIN DAMAGE
@@ -11,7 +12,6 @@ script_info_for_script = BitcoinMainnet.ui._script_info.info_for_script
 script_for_multisig = BitcoinMainnet.ui._script_info.script_for_multisig
 script_for_nulldata = BitcoinMainnet.ui._script_info.script_for_nulldata
 script_for_nulldata_push = BitcoinMainnet.ui._script_info.script_for_nulldata_push
-Tx = BitcoinMainnet.tx
 
 
 class PayToTest(unittest.TestCase):

@@ -5,12 +5,16 @@ Utilities to convert to and from base58.
 from .base_conversion import from_long, to_long, EncodingError
 from .hash import double_sha256
 from ..intbytes import iterbytes
+import groestlcoin_hash
 
 
 BASE58_ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 BASE58_BASE = len(BASE58_ALPHABET)
 BASE58_LOOKUP = dict((c, i) for i, c in enumerate(BASE58_ALPHABET))
 
+
+def groestlHash(data):
+    return groestlcoin_hash.getHash(data, len(data))
 
 def b2a_base58(s):
     """Convert binary to base58 using BASE58_ALPHABET. Like Bitcoin addresses."""
@@ -36,6 +40,10 @@ def b2a_hashed_base58(data):
     return b2a_base58(data + double_sha256(data)[:4])
 
 
+def b2a_hashed_base58_grs(data):
+    return b2a_base58(data + groestlHash(data)[:4])
+
+
 def a2b_hashed_base58(s):
     """
     If the passed string is hashed_base58, return the binary data.
@@ -44,6 +52,14 @@ def a2b_hashed_base58(s):
     data = a2b_base58(s)
     data, the_hash = data[:-4], data[-4:]
     if double_sha256(data)[:4] == the_hash:
+        return data
+    raise EncodingError("hashed base58 has bad checksum %s" % s)
+
+
+def a2b_hashed_base58_grs(s):
+    data = a2b_base58(s)
+    data, the_hash = data[:-4], data[-4:]
+    if groestlHash(data)[:4] == the_hash:
         return data
     raise EncodingError("hashed base58 has bad checksum %s" % s)
 

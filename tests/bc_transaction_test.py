@@ -32,16 +32,13 @@ import unittest
 import json
 import os
 
-from pycoin.coins.exceptions import ValidationFailureError
-from pycoin.coins.SolutionChecker import ScriptError
-from pycoin.encoding.hexbytes import h2b_rev
+from pycoin.serialize import h2b_rev
+from pycoin.tx.Tx import Tx
+from pycoin.tx.exceptions import ValidationFailureError
+from pycoin.tx.Spendable import Spendable
 from pycoin.satoshi import flags
-from pycoin.symbols.btc import network as BitcoinMainnet
-
-
-ScriptTools = BitcoinMainnet.extras.ScriptTools
-Spendable = BitcoinMainnet.tx.Spendable
-Tx = BitcoinMainnet.tx
+from pycoin.coins.SolutionChecker import ScriptError
+from pycoin.coins.bitcoin.ScriptTools import BitcoinScriptTools as ScriptTools
 
 DEBUG_TX_ID_LIST = []
 

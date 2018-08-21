@@ -1,5 +1,6 @@
-from pycoin.encoding.hexbytes import b2h, h2b, b2h_rev, h2b_rev
+from pycoin.serialize import b2h, h2b, b2h_rev, h2b_rev
 from pycoin.key.BIP32Node import BIP32Node
+from pycoin.tx import Spendable
 
 
 class SQLite3Persistence(object):
@@ -134,7 +135,7 @@ unique(tx_hash, tx_out_index)
         self._exec_sql("delete from Spendable where tx_hash = ? and tx_out_index = ?",
                        b2h_rev(tx_hash), tx_out_index)
 
-    def spendable_for_hash_index(self, tx_hash, tx_out_index, spendable_class):
+    def spendable_for_hash_index(self, tx_hash, tx_out_index):
         tx_hash_hex = b2h_rev(tx_hash)
         SQL = ("select coin_value, script, block_index_available, "
                "does_seem_spent, block_index_spent from Spendable where "
@@ -143,29 +144,21 @@ unique(tx_hash, tx_out_index)
         r = c.fetchone()
         if r is None:
             return r
-        return spendable_class(coin_value=r[0], script=h2b(r[1]), tx_hash=tx_hash,
-                               tx_out_index=tx_out_index, block_index_available=r[2],
-                               does_seem_spent=r[3], block_index_spent=r[4])
+        return Spendable(coin_value=r[0], script=h2b(r[1]), tx_hash=tx_hash,
+                         tx_out_index=tx_out_index, block_index_available=r[2],
+                         does_seem_spent=r[3], block_index_spent=r[4])
 
     @staticmethod
-    def spendable_for_row(r, spendable_class):
-        return spendable_class(coin_value=r[2], script=h2b(r[3]), tx_hash=h2b_rev(r[0]), tx_out_index=r[1],
-                               block_index_available=r[4], does_seem_spent=r[5], block_index_spent=r[6])
+    def spendable_for_row(r):
+        return Spendable(coin_value=r[2], script=h2b(r[3]), tx_hash=h2b_rev(r[0]), tx_out_index=r[1],
+                         block_index_available=r[4], does_seem_spent=r[5], block_index_spent=r[6])
 
-    def all_spendables(self, spendable_class, qualifier_sql=""):
-        SQL = ("select tx_hash, tx_out_index, coin_value, script, block_index_available, "
-               "does_seem_spent, block_index_spent from Spendable " + qualifier_sql)
-        c1 = self._exec_sql(SQL)
-        while 1:
-            r = next(c1)
-            yield self.spendable_for_row(r, spendable_class)
-
-    def unspent_spendables(self, last_block, spendable_class, confirmations=0):
+    def unspent_spendables(self, last_block, confirmations=0):
         # we fetch spendables "old enough"
         # we alternate between "biggest" and "smallest" spendables
         SQL = ("select tx_hash, tx_out_index, coin_value, script, block_index_available, "
                "does_seem_spent, block_index_spent from Spendable where "
-               "block_index_available > 0 and does_seem_spent = 0 and block_index_spent = 0 "
+               "does_seem_spent = 0 and block_index_spent is null "
                "%s order by coin_value %s")
 
         if confirmations > 0:
@@ -180,13 +173,13 @@ unique(tx_hash, tx_out_index)
         seen = set()
         while 1:
             r = next(c2)
-            s = self.spendable_for_row(r, spendable_class)
+            s = self.spendable_for_row(r)
             name = (s.tx_hash, s.tx_out_index)
             if name not in seen:
                 yield s
             seen.add(name)
             r = next(c1)
-            s = self.spendable_for_row(r, spendable_class)
+            s = self.spendable_for_row(r)
             name = (s.tx_hash, s.tx_out_index)
             if name not in seen:
                 yield s
@@ -194,14 +187,14 @@ unique(tx_hash, tx_out_index)
 
     def unspent_spendable_count(self):
         SQL = ("select count(*) from Spendable where does_seem_spent = 0"
-               " and block_index_available > 0 and block_index_spent = 0")
+               " and block_index_spent is null")
         c = self._exec_sql(SQL)
         r = c.fetchone()
         return r[0]
 
-    def rewind_spendables(self, block_index):
-        SQL1 = ("update Spendable set block_index_available = 0 where block_index_available > ?")
+    def invalidate_block_index_for_spendables(self, block_index):
+        SQL1 = ("update Spendable set block_index_available = null where block_index_available = ?")
         self._exec_sql(SQL1, block_index)
 
-        SQL2 = ("update Spendable set block_index_spent = 0 where block_index_spent > ?")
+        SQL2 = ("update Spendable set block_index_spent = null where block_index_spent = ?")
         self._exec_sql(SQL2, block_index)

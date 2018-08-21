@@ -2,8 +2,10 @@ import collections
 import itertools
 
 from pycoin.encoding.hash import hash160
-from pycoin.encoding.hexbytes import b2h
 from pycoin.encoding.sec import is_sec_compressed, public_pair_to_hash160_sec
+
+from pycoin.serialize import b2h
+
 from pycoin.satoshi.flags import SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, SIGHASH_FORKID
 from pycoin.satoshi.checksigops import parse_signature_blob
 from pycoin.coins.SolutionChecker import ScriptError
@@ -120,14 +122,11 @@ class Annotate(object):
             pass
 
         # the script may have ended early, so let's just double-check
-        try:
-            for idx, (opcode, data, pc, new_pc) in enumerate(itertools.chain(
-                self._script_tools.get_opcodes(tx.unspents[tx_in_idx].script),
-                    self._script_tools.get_opcodes(tx.txs_in[tx_in_idx].script))):
-                if idx >= len(r):
-                    r.append(([], pc, opcode, self.instruction_for_opcode(opcode, data), []))
-        except IndexError:
-            pass
+        for idx, (opcode, data, pc, new_pc) in enumerate(itertools.chain(
+            self._script_tools.get_opcodes(tx.unspents[tx_in_idx].script),
+                self._script_tools.get_opcodes(tx.txs_in[tx_in_idx].script))):
+            if idx >= len(r):
+                r.append(([], pc, opcode, self.instruction_for_opcode(opcode, data), []))
 
         return r
 

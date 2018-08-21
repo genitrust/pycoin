@@ -1,9 +1,10 @@
 import hashlib
 
-from pycoin.contrib import segwit_addr
-from pycoin.encoding.b58 import b2a_hashed_base58
+from pycoin.encoding.b58 import b2a_hashed_base58, b2a_hashed_base58_grs
 from pycoin.encoding.hash import hash160
-from pycoin.encoding.hexbytes import b2h
+from pycoin.serialize import b2h
+
+from pycoin.contrib import segwit_addr
 from pycoin.intbytes import iterbytes
 from pycoin.key.Key import Key
 from pycoin.key.BIP32Node import BIP32Node
@@ -23,12 +24,12 @@ from .Parser import parse, parse_to_info
 
 
 class UI(object):
-    def __init__(self, puzzle_scripts, generator, bip32_prv_prefix=None, bip32_pub_prefix=None,
-                 wif_prefix=None, sec_prefix=None, address_prefix=None, pay_to_script_prefix=None, bech32_hrp=None):
+    def __init__(self, puzzle_scripts, generator, bip32_prv_prefix, bip32_pub_prefix,
+                 wif_prefix, sec_prefix, address_prefix, pay_to_script_prefix, bech32_hrp=None):
         self._script_info = puzzle_scripts
-        self._key_class = Key.make_subclass(ui_context=self, generator=generator)
-        self._electrum_class = ElectrumWallet.make_subclass(ui_context=self, generator=generator)
-        self._bip32node_class = BIP32Node.make_subclass(ui_context=self, generator=generator)
+        self._key_class = Key.make_subclass(default_ui_context=self)
+        self._electrum_class = ElectrumWallet.make_subclass(default_ui_context=self)
+        self._bip32node_class = BIP32Node.make_subclass(default_ui_context=self)
         self._parsers = [
             WIFParser(generator, wif_prefix, address_prefix, self._key_class),
             ElectrumParser(generator, self._electrum_class),
@@ -47,9 +48,11 @@ class UI(object):
 
     # ui_context stuff (used with Key, BIP32Node)
 
-    def bip32_as_string(self, blob, as_private):
-        prefix = self._bip32_prv_prefix if as_private else self._bip32_pub_prefix
-        return b2a_hashed_base58(prefix + blob)
+    def bip32_private_prefix(self):
+        return self._bip32_prv_prefix
+
+    def bip32_public_prefix(self):
+        return self._bip32_pub_prefix
 
     def wif_for_blob(self, blob):
         return b2a_hashed_base58(self._wif_prefix + blob)
@@ -90,11 +93,15 @@ class UI(object):
 
     def address_for_p2pkh(self, h160):
         if self._address_prefix:
+            if 'GRS' in self._sec_prefix:
+                return b2a_hashed_base58_grs(self._address_prefix + h160)
             return b2a_hashed_base58(self._address_prefix + h160)
         return "???"
 
     def address_for_p2sh(self, h160):
         if self._pay_to_script_prefix:
+            if 'GRS' in self._sec_prefix:
+                return b2a_hashed_base58_grs(self._pay_to_script_prefix + h160)
             return b2a_hashed_base58(self._pay_to_script_prefix + h160)
         return "???"
 

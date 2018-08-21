@@ -8,10 +8,16 @@ import re
 import subprocess
 import sys
 
-from pycoin.encoding.hexbytes import b2h, h2b
+from pycoin.ecdsa.secp256k1 import secp256k1_generator
+from pycoin.ecdsa import is_public_pair_valid, public_pair_for_x, generator_secp256k1
+from pycoin.serialize import b2h, h2b
+from pycoin.key import Key
 from pycoin.ui.key_from_text import key_info_from_text
+from pycoin.key.BIP32Node import BIP32Node
 from pycoin.networks.default import get_current_netcode
-from pycoin.networks.registry import network_codes, network_for_netcode
+from pycoin.networks.registry import (
+    full_network_name_for_netcode, network_codes, network_for_netcode
+)
 
 
 SEC_RE = re.compile(r"^(0[23][0-9a-fA-F]{64})|(04[0-9a-fA-F]{128})$")
@@ -73,20 +79,21 @@ def parse_as_public_pair(s, generator):
                     return generator.Point(v0, y)
                 v1 = parse_as_number(s1)
                 if v1:
-                    if not generator.contains_point(v0, v1):
+                    if not is_public_pair_valid(generator_secp256k1, (v0, v1)):
                         sys.stderr.write("invalid (x, y) pair\n")
                         sys.exit(1)
                     return (v0, v1)
 
 
-def create_key_output(key, network, subkey_path, add_output):
-    if hasattr(key, "hwif"):
+def create_wallet_key_output(key, network, subkey_path, add_output):
+    ui_context = network.ui
+    if hasattr(key, "wallet_key"):
         if subkey_path:
             add_output("subkey_path", subkey_path)
 
-        add_output("wallet_key", key.hwif(as_private=key.is_private()))
+        add_output("wallet_key", key.hwif(ui_context=ui_context, as_private=key.is_private()))
         if key.is_private():
-            add_output("public_version", key.hwif(as_private=False))
+            add_output("public_version", key.hwif(ui_context=ui_context, as_private=False))
 
         child_number = key.child_index()
         if child_number >= 0x80000000:
@@ -116,6 +123,8 @@ def create_public_pair_output(key, add_output):
         add_output("key_pair_as_sec", b2h(key.sec(use_uncompressed=False)))
         add_output("key_pair_as_sec_uncompressed", b2h(key.sec(use_uncompressed=True)), " uncompressed")
 
+        add_output("ethereum_address", ethereum_address_for_public_pair(public_pair))
+
 
 def create_hash160_output(key, network, add_output, output_dict):
     ui_context = network.ui
@@ -133,12 +142,12 @@ def create_hash160_output(key, network, add_output, output_dict):
 
     address = ui_context.address_for_p2pkh(hash160 or hash160_c)
     add_output("address", address, "%s address" % network_name)
-    add_output("%s_address" % network.code, address, is_legacy_key=True)
+    output_dict["%s_address" % network.code] = address
 
     if hash160_c and hash160_u:
-        address = key.address(use_uncompressed=True)
+        address = key.address(ui_context=ui_context, use_uncompressed=True)
         add_output("address_uncompressed", address, "%s address uncompressed" % network_name)
-        add_output("%s_address_uncompressed" % network.code, address, is_legacy_key=True)
+        output_dict["%s_address_uncompressed" % network.code] = address
 
     # don't print segwit addresses unless we're sure we have a compressed key
     if hash160_c and hasattr(network, "ui") and getattr(network.ui, "_bech32_hrp"):
@@ -146,7 +155,7 @@ def create_hash160_output(key, network, add_output, output_dict):
         if address_segwit:
             # this network seems to support segwit
             add_output("address_segwit", address_segwit, "%s segwit address" % network_name)
-            add_output("%s_address_segwit" % network.code, address_segwit, is_legacy_key=True)
+            output_dict["%s_address_segwit" % network.code] = address_segwit
 
             p2sh_script = network.ui._script_info.script_for_p2pkh_wit(hash160_c)
             p2s_address = network.ui.address_for_p2s(p2sh_script)
@@ -157,37 +166,44 @@ def create_hash160_output(key, network, add_output, output_dict):
             add_output("p2sh_segwit_script", p2sh_script_hex, " corresponding p2sh script")
 
 
-def create_output(item, key, network, output_key_set, subkey_path=None):
+def ethereum_address_for_public_pair(pair):
+    import sha3
+    from pycoin.encoding.bytes32 import to_bytes_32
+    public_blob = b''.join(to_bytes_32(p) for p in pair)
+    address = b2h(sha3.keccak_256(public_blob).digest()[12:])
+    try:
+        from web3 import Web3
+        return Web3.toChecksumAddress(address)
+    except (ImportError, ValueError) as e:
+        return "0x%s" % address
+
+
+def create_output(item, key, network, subkey_path=None):
     ui_context = network.ui
-    key._ui_context = ui_context
     output_dict = {}
     output_order = []
 
-    def add_output(json_key, value=None, human_readable_key=None, is_legacy_key=False):
-        if output_key_set and json_key not in output_key_set:
-            return
+    def add_output(json_key, value=None, human_readable_key=None):
         if human_readable_key is None:
             human_readable_key = json_key.replace("_", " ")
         if value:
-            if is_legacy_key:
-                output_dict[json_key.strip()] = value
-            else:
-                output_dict[json_key.strip().lower()] = value
-                output_order.append((json_key.lower(), human_readable_key))
+            output_dict[json_key.strip().lower()] = value
+        output_order.append((json_key.lower(), human_readable_key))
 
     full_network_name = "%s %s" % (network.network_name, network.subnet_name)
     add_output("input", item)
     add_output("network", full_network_name)
     add_output("netcode", network.code)
 
-    create_key_output(key, network, subkey_path, add_output)
+    create_wallet_key_output(key, network, subkey_path, add_output)
 
     secret_exponent = key.secret_exponent()
     if secret_exponent:
         add_output("secret_exponent", '%d' % secret_exponent)
         add_output("secret_exponent_hex", '%x' % secret_exponent, " hex")
-        add_output("wif", key.wif(use_uncompressed=False))
-        add_output("wif_uncompressed", key.wif(use_uncompressed=True), " uncompressed")
+        add_output("ethereum_secret_key", '%064x' % secret_exponent)
+        add_output("wif", key.wif(ui_context=ui_context, use_uncompressed=False))
+        add_output("wif_uncompressed", key.wif(ui_context=ui_context, use_uncompressed=True), " uncompressed")
 
     create_public_pair_output(key, add_output)
 
@@ -216,7 +232,7 @@ def create_parser():
         description='Crypto coin utility ku ("key utility") to show'
         ' information about Bitcoin or other cryptocoin data structures.',
         epilog=('Known networks codes:\n  ' +
-                ', '.join(['%s (%s)' % (i, network_for_netcode(i).full_name()) for i in codes]))
+                ', '.join(['%s (%s)' % (i, full_network_name_for_netcode(i)) for i in codes]))
     )
     parser.add_argument('-w', "--wallet", help='show just Bitcoin wallet key', action='store_true')
     parser.add_argument('-W', "--wif", help='show just Bitcoin WIF', action='store_true')
@@ -230,12 +246,19 @@ def create_parser():
 
     parser.add_argument('-j', "--json", help='output as JSON', action='store_true')
 
-    parser.add_argument('-b', "--brief", nargs="*", help='brief output; display a single field')
-
     parser.add_argument('-s', "--subkey", help='subkey path (example: 0H/2/15-20)')
     parser.add_argument('-n', "--network", help='specify network', choices=codes)
     parser.add_argument("--override-network", help='override detected network type',
                         default=None, choices=codes)
+    parser.add_argument(
+        '-E', '--ether-key', help='show just Ethereum secret key', action='store_true'
+    )
+    parser.add_argument(
+        '-e', '--ether-addr', help='show just Ethereum address', action='store_true'
+    )
+    parser.add_argument(
+        '-:', '--output-only', help='filter output by this key'
+    )
 
     parser.add_argument(
         'item', nargs="*", help='a BIP0032 wallet key string;'
@@ -253,23 +276,20 @@ def create_parser():
     return parser
 
 
-def _create_bip32(network):
+def _create_bip32(generator):
     max_retries = 64
     for _ in range(max_retries):
         try:
-            return network.extras.BIP32Node.from_master_secret(get_entropy())
+            return BIP32Node.from_master_secret(secp256k1_generator, get_entropy())
         except ValueError as e:
             continue
     # Probably a bug if we get here
     raise RuntimeError("can't create BIP32 key")
 
 
-def parse_key(item, networks):
-    default_network = networks[0]
-    Key = default_network.extras.Key
-    generator = Key._default_generator
+def parse_key(item, networks, generator):
     if item == 'create':
-        return None, _create_bip32(default_network)
+        return None, _create_bip32(generator)
 
     for network, key_info in key_info_from_text(item, networks=networks):
         return network, key_info["create_f"]()
@@ -279,10 +299,10 @@ def parse_key(item, networks):
 
     secret_exponent = parse_as_secret_exponent(item, generator)
     if secret_exponent:
-        return None, Key(secret_exponent=secret_exponent)
+        return None, Key(secret_exponent=secret_exponent, generator=generator)
 
     if SEC_RE.match(item):
-        return None, Key.from_sec(h2b(item))
+        return None, Key.from_sec(h2b(item), generator)
 
     public_pair = parse_as_public_pair(item, generator)
     if public_pair:
@@ -295,20 +315,32 @@ def generate_output(args, output_dict, output_order):
     if args.json:
         # the python2 version of json.dumps puts an extra blank prior to the end of each line
         # the "replace" is a hack to make python2 produce the same output as python3
-        print(json.dumps(output_dict, indent=3, sort_keys=True).replace(" \n", "\n"))
-        return
-
-    if len(output_order) == 0:
-        print("no output: use -j option to see keys")
-    elif len(output_dict) == 1:
-        print(output_dict[output_order[0][0]])
+        if args.output_only:
+            output = {args.output_only: output_dict[args.output_only]}
+        else:
+            output = output_dict
+        print(json.dumps(output, indent=3, sort_keys=True).replace(" \n", "\n"))
+    elif args.wallet:
+        print(output_dict["wallet_key"])
+    elif args.wif:
+        print(output_dict["wif_uncompressed" if args.uncompressed else "wif"])
+    elif args.address:
+        print(output_dict["address" + ("_uncompressed" if args.uncompressed else "")])
+    elif args.ether_key:
+        print(output_dict["ethereum_secret_key"])
+    elif args.ether_addr:
+        print(output_dict["ethereum_address"])
+    elif args.output_only:
+        print(output_dict[args.output_only])
     else:
         dump_output(output_dict, output_order)
 
 
 def ku(args, parser):
+    generator = secp256k1_generator
+
     fallback_network = network_for_netcode(args.network or get_current_netcode())
-    parse_networks = [fallback_network] + [network_for_netcode(netcode) for netcode in network_codes()]
+    parse_networks = [network_for_netcode(netcode) for netcode in network_codes()]
     if args.network:
         parse_networks = [network_for_netcode(args.network)]
 
@@ -321,18 +353,10 @@ def ku(args, parser):
     def parse_stdin():
         return [item for item in sys.stdin.readline().strip().split(' ') if len(item) > 0]
 
-    output_key_set = set(args.brief or [])
-    if args.wallet:
-        output_key_set.add("wallet_key")
-    elif args.wif:
-        output_key_set.add("wif_uncompressed" if args.uncompressed else "wif")
-    elif args.address:
-        output_key_set.add("address" + ("_uncompressed" if args.uncompressed else ""))
-
     items = args.item if len(args.item) > 0 else parse_stdin()
 
     for item in items:
-        key_network, key = parse_key(item, parse_networks)
+        key_network, key = parse_key(item, parse_networks, generator)
         if key is None:
             print("can't parse %s" % item, file=sys.stderr)
             continue
@@ -343,7 +367,7 @@ def ku(args, parser):
             if args.public:
                 key = key.public_copy()
 
-            output_dict, output_order = create_output(item, key, display_network, output_key_set)
+            output_dict, output_order = create_output(item, key, display_network)
 
             generate_output(args, output_dict, output_order)
 

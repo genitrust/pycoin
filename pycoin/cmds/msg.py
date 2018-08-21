@@ -8,8 +8,10 @@ import sys
 from pycoin.encoding.exceptions import EncodingError
 from pycoin.encoding.sec import public_pair_to_hash160_sec
 from pycoin.contrib.msg_signing import MessageSigner
-from pycoin.networks.registry import network_for_netcode, network_codes
-
+from pycoin.ecdsa.secp256k1 import secp256k1_generator
+from pycoin.networks.registry import (
+    full_network_name_for_netcode, network_for_netcode, network_codes
+)
 from .ku import parse_key
 
 
@@ -25,7 +27,7 @@ def create_parser():
     parser = argparse.ArgumentParser(
         description='Create or verify a text signature using bitcoin standards',
         epilog=('Known networks codes:\n  ' +
-                ', '.join(['%s (%s)' % (i, network_for_netcode(i).full_name()) for i in codes]))
+                ', '.join(['%s (%s)' % (i, full_network_name_for_netcode(i)) for i in codes]))
     )
     parser.add_argument('-n', "--network", help='specify network (default: BTC = Bitcoin)',
                         default='BTC', choices=codes)
@@ -38,7 +40,7 @@ def create_parser():
 
     verify = subparsers.add_parser('verify')
     verify.add_argument('signature', help='the signature to verify')
-    verify.add_argument('address', nargs="?", help='the address to verify against')
+    verify.add_argument('address', nargs="?", help='the signature to verify')
     add_read_msg_arguments(verify, "verified")
 
     return parser
@@ -53,9 +55,9 @@ def get_message_hash(args, message_signer):
 
 def msg_sign(args, parser):
     network = network_for_netcode(args.network)
-    message_signer = MessageSigner(network)
+    message_signer = MessageSigner(network.network_name, network.ui, secp256k1_generator)
     message_hash = get_message_hash(args, message_signer)
-    network, key = parse_key(args.WIF, [network])
+    network, key = parse_key(args.WIF, [network], secp256k1_generator)
     is_compressed = not key._use_uncompressed()
     sig = message_signer.signature_for_message_hash(
         key.secret_exponent(), msg_hash=message_hash, is_compressed=is_compressed)
@@ -64,7 +66,7 @@ def msg_sign(args, parser):
 
 def msg_verify(args, parser):
     network = network_for_netcode(args.network)
-    message_signer = MessageSigner(network)
+    message_signer = MessageSigner(network.network_name, network.ui, secp256k1_generator)
     message_hash = get_message_hash(args, message_signer)
     try:
         pair, is_compressed = message_signer.pair_for_message_hash(args.signature, msg_hash=message_hash)

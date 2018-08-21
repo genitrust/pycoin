@@ -30,7 +30,7 @@ def service_provider_methods(method_name, service_providers):
     return methods
 
 
-def spendables_for_address(address, netcode, format=None):
+def spendables_for_address(bitcoin_address, netcode, format=None):
     """
     Return a list of Spendable objects for the
     given bitcoin address.
@@ -48,7 +48,7 @@ def spendables_for_address(address, netcode, format=None):
         method = "as_%s" % format
     for m in service_provider_methods("spendables_for_address", get_default_providers_for_netcode(netcode)):
         try:
-            spendables = m(address)
+            spendables = m(bitcoin_address)
             if format:
                 spendables = [getattr(s, method)() for s in spendables]
             return spendables
@@ -91,7 +91,7 @@ def bitcoin_rpc_init(match, netcode):
 
 
 def insight_init(match, netcode):
-    return InsightProvider(base_url=match.group("url"), netcode=netcode)
+    return InsightProvider(base_url=match.group("url"))
 
 
 DESCRIPTOR_CRE_INIT_TUPLES = [
