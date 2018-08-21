@@ -171,7 +171,11 @@ def ethereum_address_for_public_pair(pair):
     from pycoin.encoding.bytes32 import to_bytes_32
     public_blob = b''.join(to_bytes_32(p) for p in pair)
     address = b2h(sha3.keccak_256(public_blob).digest()[12:])
-    return "0x%s" % address
+    try:
+        from web3 import Web3
+        return Web3.toChecksumAddress(address)
+    except (ImportError, ValueError) as e:
+        return "0x%s" % address
 
 
 def create_output(item, key, network, subkey_path=None):
