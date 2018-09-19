@@ -1,4 +1,4 @@
-from pycoin.encoding.hash import hash160
+from pycoin.encoding.hash import hash160, ripe160
 from pycoin.encoding.bytes32 import from_bytes_32, to_bytes_32
 from pycoin.encoding.sec import (
     is_sec_compressed, public_pair_to_sec,
@@ -155,6 +155,9 @@ class Key(object):
         if self._hash160_compressed is None:
             self._hash160_compressed = hash160(self.sec(use_uncompressed=use_uncompressed))
         return self._hash160_compressed
+
+    def ripemd160(self):
+        return ripe160(self.sec(use_uncompressed=False))
 
     def address(self, use_uncompressed=None, ui_context=None):
         """
