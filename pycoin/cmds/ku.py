@@ -134,6 +134,8 @@ def create_hash160_output(key, network, add_output, output_dict):
     hash160 = None
     if hash160_c is None and hash160_u is None:
         hash160 = key.hash160()
+    if network.code in ['ARK', 'DARK']:
+        hash160 = key.ripemd160()
 
     add_output("hash160", b2h(hash160 or hash160_c))
 

@@ -29,6 +29,11 @@ def hash160(data):
     return ripemd160(hashlib.sha256(data).digest()).digest()
 
 
+def ripe160(data):
+    """A standard single RIPE MD 160 hash."""
+    return ripemd160(data).digest()
+
+
 """
 The MIT License (MIT)
 
