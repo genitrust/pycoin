@@ -98,9 +98,9 @@ NETWORKS = (
     NetworkValues("Groestlcoin", "testnet", "TGRS",  b'\xEF', b'\x6F', b'\xC4', h2b("04358394"), h2b("043587cf")),
 
     # ARK mainnet
-    NetworkValues("ARK", "mainnet", "ARK",  b'\xaa', b'\x17', b'\x00', h2b("46090600"), h2b("46089520")),
+    NetworkValues("ARK", "mainnet", "ARK",  b'\xaa', b'\x17', b'\x00', h2b("02bf4530"), h2b("02bf4968")),
 
     # ARK devnet - their version of testnet
-    NetworkValues("ARK", "devnet", "DARK",  b'\xaa', b'\x1e', b'\x00', h2b("46089520"), h2b("46090600")),
+    NetworkValues("ARK", "devnet", "DARK",  b'\xaa', b'\x1e', b'\x00', h2b("02bf4530"), h2b("02bf4968")),
 
 )
